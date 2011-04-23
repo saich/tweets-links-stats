@@ -2,6 +2,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html>
 <head>
+
 <title><?php if(!empty($title)) echo $title, " :: "; echo "Your tweet-links Analyzr" ?></title>
 
 <?php echo "\t", html::meta("Content-Type", "text/html; charset=utf-8");?>
@@ -13,10 +14,8 @@ if(!empty($metas) && is_array($metas))
 }
 ?>
 <link rel="shortcut icon" href="favicon.ico" type="image/x-icon"/>
-	
+
 <?php
-echo "\t", html::stylesheet("css/style");
-echo "\t", html::stylesheet("css/news");
 if(!empty($styles) && is_array($styles))
 {
 	foreach($styles as $style)
@@ -28,4 +27,6 @@ if(!empty($styles) && is_array($styles))
 <body>
 <?if(!empty($content)) echo $content;?>
 </body>
+<script type="text/javascript" src="/scripts/jquery-1.5.2.min.js"></script>
+<script type="text/javascript" src="/scripts/complete.js"></script>
 </html>
