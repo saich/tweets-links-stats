@@ -18,7 +18,7 @@ $(document).ready(function(){
 	});
 });
 
-var _time_gap_updation = 3000;
+var _time_gap_updation = 10000; // 10 seconds
 var _timer;
 var _ajax;
 var _last_id = 0;
@@ -29,6 +29,10 @@ function start_listening() {
 }
 
 function update_data() {
+	if(_ajax && _ajax.readyState != 0 && _ajax.readyState != 4) {
+		console.log("A request is already in progress! Let it continue");
+		return;
+	}
 	_ajax = $.ajax({
 		'url': '/welcome/get_tweets',
 		'type': 'GET',

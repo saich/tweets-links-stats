@@ -96,6 +96,7 @@ $config['extension_prefix'] = 'MY_';
  */
 $config['modules'] = array
 (
+	MODPATH.'ktwitter',
 	// MODPATH.'auth',      // Authentication
 	// MODPATH.'forge',     // Form generation
 	// MODPATH.'kodoc',     // Self-generating documentation

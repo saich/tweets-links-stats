@@ -13,82 +13,54 @@ class Welcome_Controller extends Template_Controller {
 	{
 		parent::__construct();
 		$this->twitter = new Twitter();
+		
+		$this->twitter->check_login();
 	}
 	
 	function index()
 	{
 		$this->template->title = "Home Page";
 		$this->template->content = new View('home/index');
-		return;
-		if($this->twitter->is_logged_in()) 
-		{
-			$screen_name = $this->twitter->get_screen_name();
-			$user = $this->get_user_from_db($screen_name);
-			
-			$statuses = $this->get_desired_statuses($user->since_id);
-			
-			echo "Total: ", count($statuses), '<br/>';
-			foreach($statuses as $tweet)
-			{
-				// Insert the tweet in the DB
-				$tweet_orm = ORM::factory('tweet')->where('tweet_id', $tweet['id_str'])->find();
-				if($tweet_orm->loaded === FALSE) 
-				{
-					$tweet_orm->user_id =  $user->id;
-					$tweet_orm->tweet_id = $tweet['id_str'];
-					$tweet_orm->content = $tweet['text'];
-					
-					$hosts = array();
-					foreach ($tweet['entities']['urls'] as $url)
-					{
-						$hosts[] = $this->get_host($this->get_host_from_url($url['url']));
-					}
-					$tweet_orm->domains = $hosts;
-					$tweet_orm->save();
-					if($tweet_orm->saved === FALSE)
-					{
-						Kohana::log('error', 'Error in saving a tweet in the database');
-					}
-				}
-			}
-			
-			// Save the since in the database
-			// TODO: Add logs on failure
-			// TODo: User must be this
-			if($user->since_id) 
-			{
-				$user->since_id = $this->next_since;
-				$user->save();
-			}
-		}
-		else
-		{
-			// Get Request Token & generate access URL
-			//$this->twitter->getRequestTokens();
-			//$twitter_access_url = $this->twitter->get_login_url();
-			$this->template->content = new View('home/index');
-		}
 	}
 	
 	function completed()
 	{
-		// Get Access tokens
-		$this->twitter->get_access_tokens();
-		// Redirect to home page
-		 url::redirect('');
+		if($this->twitter->check_login() == FALSE)
+        {
+			$this->twitter->sessionRequestTokens();
+			$this->twitter->tradeRequestForAccess();
+            if($this->twitter->storeTokens())
+            {
+                url::redirect('');
+            }
+            else
+            {
+                echo "help - a wierd error occured somewhere. Check your installation again";
+            }
+        }
+        else
+        {
+            url::redirect('');
+        }
 	}
 	
 	function logout()
 	{
-		$this->twitter->logout();
+		if($this->twitter->check_login() === TRUE)
+		{
+			 $this->twitter->revokeSession(TRUE);
+		}
+		// url::redirect('');
 	}
 	
 	public function get_login_status()
 	{
 		$this->auto_render = FALSE;
-		if($this->twitter->is_logged_in() === FALSE)
+		if($this->twitter->check_login() === FALSE)
 		{
-			echo json_encode(array('login_url' => $this->twitter->get_login_url()));
+			$this->twitter->getRequestTokens();
+			$url = $this->twitter->getAuthorizeUrl();
+			echo json_encode(array('login_url' => $url));
 		}
 		else
 		{
@@ -99,11 +71,13 @@ class Welcome_Controller extends Template_Controller {
 	public function get_tweets()
 	{
 		$this->auto_render = FALSE;
-		if($this->twitter->is_logged_in() === FALSE)
+		if($this->twitter->check_login() === FALSE)
 		{
 			$this->get_login_status();
 			return;
 		}
+		
+		$this->process();
 		
 		$screen_name = $this->session->get('twitter_screen_name');
 		$user = $this->get_user_from_db($screen_name);
@@ -206,9 +180,7 @@ class Welcome_Controller extends Template_Controller {
 				}
 			}
 		}
-		// TODO: Save the next_since in the DB
 		$this->next_since = $next_since;
-		
 		return $filtered_array;
 	}
 	
@@ -251,6 +223,49 @@ class Welcome_Controller extends Template_Controller {
 	private function get_host_from_url($url)
 	{
 		return parse_url($url, PHP_URL_HOST);
+	}
+	
+	private function process()
+	{
+		if($this->twitter->check_login()) 
+		{
+			$screen_name = $this->twitter->user->username;
+			$user = $this->get_user_from_db($screen_name);
+			
+			$statuses = $this->get_desired_statuses($user->since_id);
+			
+			foreach($statuses as $tweet)
+			{
+				// Insert the tweet in the DB
+				$tweet_orm = ORM::factory('tweet')->where('tweet_id', $tweet['id_str'])->find();
+				if($tweet_orm->loaded === FALSE) 
+				{
+					$tweet_orm->user_id =  $user->id;
+					$tweet_orm->tweet_id = $tweet['id_str'];
+					$tweet_orm->content = $tweet['text'];
+					
+					$hosts = array();
+					foreach ($tweet['entities']['urls'] as $url)
+					{
+						$hosts[] = $this->get_host($this->get_host_from_url($url['url']));
+					}
+					$tweet_orm->domains = $hosts;
+					$tweet_orm->save();
+					if($tweet_orm->saved === FALSE)
+					{
+						Kohana::log('error', 'Error in saving a tweet in the database');
+					}
+				}
+			}
+			
+			// Save the since in the database
+			// TODO: Add logs on failure
+			if($this->next_since) 
+			{
+				$user->since_id = $this->next_since;
+				$user->save();
+			}
+		}
 	}
 }
 ?>
